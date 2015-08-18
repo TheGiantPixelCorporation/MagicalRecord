@@ -61,24 +61,21 @@ NSString * const kMagicalRecordImportAttributeUseDefaultValueWhenNotPresent = @"
         NSAttributeDescription *attributeInfo = [attributes valueForKey:attributeName];
         NSString *lookupKeyPath = [objectData MR_lookupKeyForAttribute:attributeInfo];
         
-        if (lookupKeyPath) 
-        {
-            id value = [attributeInfo MR_valueForKeyPath:lookupKeyPath fromObjectData:objectData];
-            if (![self MR_importValue:value forKey:attributeName])
-            {
-                [self setValue:value forKey:attributeName];
+        id value;
+        if (lookupKeyPath)  {
+            value = [attributeInfo MR_valueForKeyPath:lookupKeyPath fromObjectData:objectData];
+        } else if ([[[attributeInfo userInfo] objectForKey:kMagicalRecordImportAttributeUseDefaultValueWhenNotPresent] boolValue]) {
+            value = [attributeInfo defaultValue];
+        } else {
+            continue;
+        }
+        
+        if (![self MR_importValue:value forKey:attributeName]) {
+            id localValue = [self primitiveValueForKey:attributeName];
+            if ([localValue isEqual:value] || (localValue == nil && value == [NSNull null])) {
+                continue;
             }
-        } 
-        else 
-        {
-            if ([[[attributeInfo userInfo] objectForKey:kMagicalRecordImportAttributeUseDefaultValueWhenNotPresent] boolValue]) 
-            {
-                id value = [attributeInfo defaultValue];
-                if (![self MR_importValue:value forKey:attributeName])
-                {
-                    [self setValue:value forKey:attributeName];
-                }
-            }
+            [self setValue:value forKey:attributeName];
         }
     }
 }
@@ -172,10 +169,8 @@ NSString * const kMagicalRecordImportAttributeUseDefaultValueWhenNotPresent = @"
 
         NSRelationshipDescription *relationshipInfo = [relationships valueForKey:relationshipName];
 
-        NSString *lookupKey = [[relationshipInfo userInfo] valueForKey:kMagicalRecordImportRelationshipMapKey] ?: relationshipName;
-
+        NSString *lookupKey = [relationshipData MR_lookupKeyForRelationshipImport:relationshipInfo];
         id relatedObjectData;
-
         @try
         {
             relatedObjectData = [relationshipData valueForKeyPath:lookupKey];

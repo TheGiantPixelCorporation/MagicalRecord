@@ -20,16 +20,31 @@ NSUInteger const kMagicalRecordImportMaximumAttributeFailoverDepth = 10;
 
 - (NSString *) MR_lookupKeyForAttribute:(NSAttributeDescription *)attributeInfo;
 {
-    NSString *attributeName = [attributeInfo name];
-    NSString *lookupKey = [[attributeInfo userInfo] valueForKey:kMagicalRecordImportAttributeKeyMapKey] ?: attributeName;
+    return [self MR_lookupKeyHelper:attributeInfo keyName:kMagicalRecordImportAttributeKeyMapKey];
+}
+
+- (id) MR_valueForAttribute:(NSAttributeDescription *)attributeInfo
+{
+    NSString *lookupKey = [self MR_lookupKeyForAttribute:attributeInfo];
+    return lookupKey ? [self valueForKeyPath:lookupKey] : nil;
+}
+
+- (NSString *) MR_lookupKeyForRelationshipImport:(NSRelationshipDescription *)relationshipInfo {
+    return [self MR_lookupKeyHelper:relationshipInfo keyName:kMagicalRecordImportRelationshipMapKey];
+}
+
+- (NSString *)MR_lookupKeyHelper:(NSPropertyDescription *)propertyInfo
+                         keyName:(NSString *)mapKeyName  {
+    NSString *propertyName = [propertyInfo name];
+    NSString *lookupKey = [[propertyInfo userInfo] valueForKey:mapKeyName] ?: propertyName;
     
     id value = [self valueForKeyPath:lookupKey];
     
-    for (NSUInteger i = 1; i < kMagicalRecordImportMaximumAttributeFailoverDepth && value == nil; i++)
+    for (NSUInteger i = 0; i < kMagicalRecordImportMaximumAttributeFailoverDepth && value == nil; i++)
     {
-        attributeName = [NSString stringWithFormat:@"%@.%lu", kMagicalRecordImportAttributeKeyMapKey, (unsigned long)i];
-        lookupKey = [[attributeInfo userInfo] valueForKey:attributeName];
-        if (lookupKey == nil) 
+        propertyName = [NSString stringWithFormat:@"%@.%lu", mapKeyName, (unsigned long)i];
+        lookupKey = [[propertyInfo userInfo] valueForKey:propertyName];
+        if (lookupKey == nil)
         {
             return nil;
         }
@@ -37,12 +52,7 @@ NSUInteger const kMagicalRecordImportMaximumAttributeFailoverDepth = 10;
     }
     
     return value != nil ? lookupKey : nil;
-}
-
-- (id) MR_valueForAttribute:(NSAttributeDescription *)attributeInfo
-{
-    NSString *lookupKey = [self MR_lookupKeyForAttribute:attributeInfo];
-    return lookupKey ? [self valueForKeyPath:lookupKey] : nil;
+    
 }
 
 - (NSString *) MR_lookupKeyForRelationship:(NSRelationshipDescription *)relationshipInfo
